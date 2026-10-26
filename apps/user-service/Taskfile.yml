@@ -1,0 +1,58 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  APP_NAME: grpc-service
+  CMD_DIR: ./cmd/grpc
+
+tasks:
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+
+  generate:goverter:
+    desc: "Generate struct mappers with Goverter"
+    cmds:
+      - goverter gen ./internal/infrastructure/datastore/mongodb/mapper ./internal/presentation/grpc/mapper
+
+  generate:mocks:
+    desc: "Generate layered mock interfaces with Mockery"
+    cmds:
+      - mockery
+
+  generate:wire:
+    desc: "Generate dependency injection wiring with Google Wire"
+    cmds:
+      - wire ./cmd/grpc
+
+  generate:
+    desc: "Run all code generators (goverter, mocks, wire)"
+    deps:
+      - task: generate:goverter
+      - task: generate:mocks
+    cmds:
+      - task: generate:wire
+
+  test:
+    desc: "Run unit tests with race detection"
+    cmds:
+      - go test -v -race ./...
+
+  build:
+    desc: "Build the gRPC service binary"
+    cmds:
+      - echo "Building gRPC binary..."
+      - go build -o {{.APP_NAME}} {{.CMD_DIR}}
+
+  run:
+    desc: "Run the gRPC service locally"
+    cmds:
+      - go run {{.CMD_DIR}}
+
+  clean:
+    desc: "Remove compiled binary and coverage files"
+    cmds:
+      - rm -f {{.APP_NAME}} coverage.out coverage.html
+      - echo "Cleaned."
