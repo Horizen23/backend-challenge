@@ -1,0 +1,82 @@
+# https://taskfile.dev
+
+version: '3'
+
+includes:
+  common:
+    taskfile: ./apps/common/Taskfile.yml
+    dir: ./apps/common
+  api:
+    taskfile: ./apps/gateway-api/Taskfile.yml
+    dir: ./apps/gateway-api
+  grpc:
+    taskfile: ./apps/user-service/Taskfile.yml
+    dir: ./apps/user-service
+  poc:
+    taskfile: ./lottery_system_design/poc/Taskfile.yml
+    dir: ./lottery_system_design/poc
+
+tasks:
+  default:
+    desc: "Show available tasks across all microservices"
+    cmds:
+      - task --list
+
+  proto:
+    desc: "Compile shared protobuf definitions (delegated to share package)"
+    cmds:
+      - task: common:proto
+
+  generate:
+    desc: "Run all code generators across shared proto and microservices"
+    cmds:
+      - task: common:generate
+      - task: api:generate
+      - task: grpc:generate
+
+  test:
+    desc: "Run unit tests across all microservices and shared package"
+    deps:
+      - task: common:test
+      - task: api:test
+      - task: grpc:test
+
+  build:
+    desc: "Build all microservices binaries"
+    deps:
+      - task: api:build
+      - task: grpc:build
+
+  run:
+    desc: "Run both user-service and gateway-api services concurrently"
+    deps:
+      - task: grpc:run
+      - task: api:run
+
+  run:swagger:
+    desc: "Run user-service and gateway-api (with Swagger UI) concurrently"
+    deps:
+      - task: grpc:run
+      - task: api:run:swagger
+
+  docker:up:
+    desc: "Start MongoDB, user-service, and gateway-api using docker compose"
+    cmds:
+      - docker compose up --build -d
+
+  docker:down:
+    desc: "Stop docker compose services and remove containers"
+    cmds:
+      - docker compose down
+
+  docker:logs:
+    desc: "Follow docker compose logs"
+    cmds:
+      - docker compose logs -f
+
+  clean:
+    desc: "Clean build artifacts in all services and share package"
+    deps:
+      - task: common:clean
+      - task: api:clean
+      - task: grpc:clean

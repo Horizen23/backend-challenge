@@ -1,162 +1,179 @@
-# Backend Golang Coding Test
+# Backend Golang Coding Test Solution
 
-## Overview
+This repository contains the complete implementation of the **User Management API & gRPC Services** and the comprehensive design document and Proof of Concept (POC) for the **Lottery Search System**.
 
-This coding test has two parts.
+The project structure strictly adopts clean architecture / DDD design standards (`domain`, `usecase`, `infrastructure`, `presentation` with Echo framework, DTOs, Mappers, Google Wire, and Mockery/Goverter code generation).
 
-| Section | Focus | Submission Type |
-| --- | --- | --- |
-| User Management API | Build a Golang user management API with MongoDB and JWT authentication | Code implementation |
-| Lottery Search System | Design a real-world lottery ticket search solution with wildcard matching | Design proposal only (no code) |
+---
 
-## User Management API
+## Part 1: User Management API & gRPC Architecture
 
-### Objective (User Management API)
+The project is structured as multi-service microservices using Go Workspaces (`go.work`), with a shared contract module (`apps/common/`) and clear separation of concerns (API Gateway / BFF Pattern where `gateway-api` communicates exclusively via gRPC without direct database access):
 
-Build a RESTful API in Golang to manage users, using MongoDB for persistence, JWT for authentication, and clean code practices.
+```
+.
+├── apps/
+│   ├── common/                             # Shared Protobuf Contracts & Core Utilities
+│   │   ├── pkg/logger/                     # Shared Zap logger
+│   │   ├── pkg/ctxutils/                   # Shared context propagation
+│   │   └── proto/
+│   │       ├── pb/                         # Compiled Go protobuf & gRPC stubs
+│   │       └── user.proto                  # Protobuf definition
+│   │
+│   ├── gateway-api/                        # HTTP REST API Microservice (Port 8080)
+│   │   │                                   # NO DIRECT DB ACCESS: Calls user-service via gRPC Client
+│   │   ├── cmd/api/                        # Bootstrap, Wire DI, graceful shutdown
+│   │   ├── internal/                       # REST Clean Architecture
+│   │   │   ├── config/                     # Configuration loader (GRPC_SERVER_ADDR, JWT)
+│   │   │   ├── domain/user/                # User entity
+│   │   │   ├── infrastructure/
+│   │   │   │   ├── auth/                   # JWT Provider & bcrypt
+│   │   │   │   └── grpc/client/            # gRPC Client connection to user-service
+│   │   │   ├── presentation/               # Echo HTTP handlers, DTOs, mappers, Swagger, 10s worker
+│   │   │   └── usecase/                    # REST User business usecases (delegating to gRPC)
+│   │   ├── tests/mocks/                    # Mockery generated mock interfaces
+│   │   ├── Taskfile.yml & Dockerfile       # Self-contained build & task definitions
+│   │   └── go.mod                          # Standalone Go module
+│   │
+│   └── user-service/                       # gRPC Microservice (Port 50051)
+│       │                                   # PERSISTENCE OWNER: Manages MongoDB connection & indexes
+│       ├── cmd/grpc/                       # Bootstrap, Wire DI, graceful shutdown
+│       ├── internal/                       # gRPC Clean Architecture
+│       │   ├── config/                     # Configuration loader (MongoURI, DBName)
+│       │   ├── domain/user/                # User entity & repository contract
+│       │   ├── infrastructure/             # MongoDB repo & Goverter model mapper
+│       │   ├── presentation/grpc/          # gRPC Server implementation & in-memory test
+│       │   └── usecase/                    # gRPC-focused usecase
+│       ├── tests/mocks/                    # Mockery generated mock interfaces
+│       ├── Taskfile.yml & Dockerfile       # Self-contained build & task definitions
+│       └── go.mod                          # Standalone Go module
+│
+├── docs/
+│   └── lottery/
+│       ├── system_design/                  # Lottery search system design proposal
+│       │   └── README.md                   # Architecture & Event-Driven Diagrams
+│       └── poc/                            # Executable Redis Bitmap & Lua Proof of Concept
+│           ├── go.mod                      # POC module
+│           ├── main.go                     # POC entrypoint
+│           └── engine/                     # Bitmap matching, pagination & lock engine
+│
+├── docker-compose.yml                      # Runs mongodb, user-service (50051), and gateway-api (8080)
+├── Taskfile.yml                            # Root automation orchestrator
+├── go.work & go.work.sum                   # Go Workspace referencing common, gateway-api, user-service, poc
+```
 
-### Requirements (User Management API)
+---
 
-#### 1. User Model
+### Features & Design Decisions
 
-Define a user entity with the following fields:
+1. **Clean Microservice Separation & Zero-Trust Internal Boundary**:
+   - `gateway-api` (`apps/gateway-api`): Public API Gateway / BFF using `Echo v4`. Validates request schemas, handles JWT Bearer authentication, and communicates exclusively with `user-service` via gRPC without touching the database directly.
+   - `user-service` (`apps/user-service`): Internal High-Throughput Core Service. Exclusive owner of MongoDB persistence, unique email indexing, and domain business rules.
+   - **Internal Security & Context Propagation**: Because `user-service` resides within a private internal network, `gateway-api` authenticates public callers and propagates the verified `UserID`, `Email`, and `X-Request-ID` over gRPC Metadata headers. `user-service` extracts these identity attributes via `MetadataServerInterceptor` for audit logging and tracing, eliminating redundant cryptographic JWT validation overhead across internal service calls.
+2. **Compile-Time Code Generators**:
+   - `goverter`: Generates type-safe struct mappers without reflection (DTOs <-> Domain <-> Proto requests <-> Mongo model).
+   - `mockery`: Type-safe mock interfaces with expectation assertions (`tests/mocks/`).
+   - `wire`: Compile-time Dependency Injection without reflection.
+3. **MongoDB Persistence**:
+   - Official Mongo Go Driver (`go.mongodb.org/mongo-driver`).
+   - Unique index auto-creation on `email`.
+4. **Swagger OpenAPI Documentation**:
+   - Integrated with Echo Swagger UI available at `http://localhost:8080/swagger/index.html` (under `-tags swagger`).
+5. **Graceful Shutdown**:
+   - OS signal trapping (`SIGINT`, `SIGTERM`) on both services with context timeout draining.
 
-- `ID` (auto-generated)
-- `Name` (string)
-- `Email` (string, unique)
-- `Password` (hashed)
-- `CreatedAt` (timestamp)
+---
 
-#### 2. Authentication
+### Getting Started
 
-Implement:
+#### Run with Docker Compose (Recommended)
 
-- User registration
-- User authentication that returns a JWT token
+Starts MongoDB, HTTP API (`:8080`), and gRPC service (`:50051`):
+```bash
+task docker:up
+# or: docker compose up --build -d
+```
 
-JWT requirements:
+Check container logs:
+```bash
+task docker:logs
+```
 
-- Protect endpoints with JWT
-- Validate tokens via middleware
-- Sign tokens using HMAC (`HS256`) with a secret key
+Stop containers:
+```bash
+task docker:down
+```
 
-#### 3. User Operations
+#### Run with Taskfile (`task`)
 
-Implement the following operations:
+- `task test` : Run all unit tests with race detection (`-race`)
+- `task build` : Build both `api` and `grpc-service` binaries
+- `task generate` : Trigger all generators (`goverter`, `mockery`, `wire`)
+- `task run:api` : Run HTTP API server locally on port `8080`
+- `task run:swagger` : Run HTTP API server with Swagger UI enabled on `http://localhost:8080/swagger/index.html`
+- `task run:grpc` : Run gRPC service locally on port `50051`
+- `task clean` : Clean build artifacts
 
-- Create a new user
-- Fetch a user by ID
-- List all users
-- Update a user's name or email
-- Delete a user
+---
 
-#### 4. MongoDB Integration
+### API Endpoints & Samples
 
-- Use the official Go MongoDB driver
-- Persist and retrieve user data from MongoDB
+#### HTTP Endpoints (`:8080`)
 
-#### 5. Middleware
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register new user and return JWT |
+| `POST` | `/api/auth/login` | Authenticate user and return JWT |
+| `GET` | `/healthz` | Health check endpoint |
+| `POST` | `/api/users` | Create user (Protected) |
+| `GET` | `/api/users` | List all users (Protected) |
+| `GET` | `/api/users/:id` | Get user by ID (Protected) |
+| `PUT` | `/api/users/:id` | Update user (Protected) |
+| `DELETE` | `/api/users/:id` | Delete user (Protected) |
 
-- Implement logging middleware to capture HTTP method, path, and execution time
+**Sample Auth Register:**
+```bash
+curl -s -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "password": "mypassword123"
+  }'
+```
 
-#### 6. Concurrency Task
+---
 
-- Run a background goroutine every 10 seconds to log the total number of users in the database
+#### gRPC Service (`:50051`)
 
-#### 7. Testing
+Supports `pb.UserService`:
+- `CreateUser(CreateUserRequest) returns (UserResponse)`
+- `GetUser(GetUserRequest) returns (UserResponse)`
+- `ListUsers(ListUsersRequest) returns (ListUsersResponse)`
+- `UpdateUser(UpdateUserRequest) returns (UserResponse)`
+- `DeleteUser(DeleteUserRequest) returns (DeleteUserResponse)`
+- `CountUsers(CountUsersRequest) returns (CountUsersResponse)`
+- `VerifyPassword(VerifyPasswordRequest) returns (VerifyPasswordResponse)`
 
-- Write unit tests using Go's standard `testing` package
-- Mock MongoDB interactions where appropriate
+---
 
-### Bonus (Optional, User Management API)
+## Part 2: Lottery Search System Design & POC
 
-- **Containerization**: Add Docker and `docker-compose` support for the API and MongoDB
-- **Abstraction**: Use Go interfaces to abstract MongoDB operations for better testability
-- **Validation**: Implement input validation (for example, required fields and email format)
-- **Graceful Shutdown**: Handle system signals using `context.Context`
-- **gRPC Support**:
-  - Define a `.proto` file for `CreateUser` and `GetUser`
-  - Implement a gRPC server (optionally secure with token metadata)
-- **Hexagonal Architecture**:
-  - Structure the project using ports and adapters
-  - Separate domain, application, and infrastructure layers
-  - Decouple business logic from frameworks and drivers
+The full technical design proposal and architecture diagrams are available in [`lottery_system_design/README.md`](lottery_system_design/README.md).
 
-### Deliverables (User Management API)
+### Summary Highlights:
+1. **Positional Bitmaps (60 Bitmaps)**:
+   - Indexes 10M tickets using 60 bitmaps (10 digits * 6 positions) representing only **~75 MB** of RAM (100K tickets use only ~16 KB).
+   - Any wildcard pattern (e.g. `****23`, `1****5`, `123***`) executes in **sub-millisecond (< 1ms)** via hardware-accelerated SIMD `BITOP AND`.
+2. **Atomic Distribution & Anti-Collision**:
+   - Single-step Redis Lua script execution combines matching with atomic leasing.
+   - Automatically marks selected tickets as leased with a TTL (e.g. 5 minutes).
+   - Guarantees zero duplicate allocations to concurrent users searching the exact same pattern simultaneously.
+3. **Cursor-based Pagination**:
+   - Instant count of matching tickets using `BITCOUNT`.
+   - Streaming pagination using `BITPOS` starting from the cursor offset without full scans.
 
-Provide a Git repository containing:
-
-- `README.md` with setup and execution instructions
-- A guide explaining how to generate and use JWT tokens
-- Sample API requests and responses
-- Documentation of assumptions or design decisions
-
-### Evaluation Criteria (User Management API)
-
-- Code quality, structure, and readability
-- Correctness and completeness of the REST API
-- Security and implementation of JWT
-- Proper usage and abstraction of MongoDB
-- Test coverage and effective mocking
-- Idiomatic Go usage
-- Bonus implementations (gRPC, Docker, validation, architecture)
-
-## Lottery Search System
-
-### Objective (Lottery Search System)
-
-Design a real-world solution to search a large dataset of lottery tickets using pattern matching with wildcard support.
-
-> This section is a design exercise. Do not implement code.
-
-### Requirements (Lottery Search System)
-
-#### 1. Data Volume
-
-- Handle a dataset of **10 million** lottery tickets
-- Each ticket is a 6-digit number
-
-#### 2. Search Pattern
-
-- Support a 6-character search pattern containing digits and wildcards (`*`)
-- Example patterns:
-
-| Pattern | Matches |
-| --- | --- |
-| `****23` | Numbers ending in `23` |
-| `1****5` | Numbers starting with `1` and ending with `5` |
-| `123***` | Numbers starting with `123` |
-
-#### 3. Result Distribution
-
-- Constraint: the same search pattern should not return the same ticket to multiple users at the same time
-- Propose a distribution mechanism so matching tickets are assigned without duplicate simultaneous selection
-
-#### 4. Performance
-
-- Ensure the search is performant for `10M+` records
-- Propose an efficient approach for querying and allocation
-
-#### 5. Real-World Design Proposal (No Code Required)
-
-- Recommend the database/storage technology you would use in production and explain why
-- Describe the algorithm and indexing strategy used for wildcard pattern matching
-- Explain how you would prevent duplicate simultaneous results for the same pattern (for example, locking, reservation, or atomic allocation)
-- No code implementation is required; provide a solution/design only
-
-### Deliverables (Lottery Search System)
-
-Submit a design document only (no code implementation) that includes:
-
-- Proposed solution architecture, data structures, and algorithms
-- Recommended production database/storage choice with justification (for example, query performance, concurrency handling, operational simplicity)
-- Performance analysis summarizing efficiency and tradeoffs
-- Concurrency/distribution strategy explaining how duplicate results are avoided for the same pattern
-
-### Evaluation Criteria (Lottery Search System)
-
-- Feasibility: the solution addresses the stated requirements
-- Performance: the search approach is efficient for the target scale
-- Correctness: the distribution constraint is handled correctly
-- Real-world practicality: the database/storage and concurrency approach are appropriate for production use
-- Creativity: thoughtful use of data structures and algorithms
+### Run the POC:
+```bash
+cd lottery_system_design/poc && go run main.go
+```

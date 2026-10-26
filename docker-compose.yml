@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb-user-service
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: user_management_db
+    volumes:
+      - mongo_data:/data/db
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./apps/user-service/Dockerfile
+    container_name: user-service-service
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    environment:
+      GRPC_PORT: "50051"
+      MONGO_URI: "mongodb://mongodb:27017"
+      DB_NAME: "user_management_db"
+    depends_on:
+      - mongodb
+
+  gateway-api:
+    build:
+      context: .
+      dockerfile: ./apps/gateway-api/Dockerfile
+    container_name: gateway-api-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      GRPC_SERVER_ADDR: "user-service:50051"
+      JWT_SECRET: "my-secure-long-secret-key-for-jwt-token-hashing"
+    depends_on:
+      - user-service
+
+volumes:
+  mongo_data:

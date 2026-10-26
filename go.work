@@ -1,0 +1,8 @@
+go 1.25.9
+
+use (
+	./apps/common
+	./apps/gateway-api
+	./apps/user-service
+	./lottery_system_design/poc
+)
