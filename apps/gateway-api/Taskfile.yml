@@ -1,0 +1,75 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  APP_NAME: api
+  CMD_DIR: ./cmd/api
+
+tasks:
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
+
+  generate:swagger:
+    desc: "Generate Swagger/OpenAPI documentation from annotations"
+    cmds:
+      - swag init -g cmd/api/main.go -o ./docs --parseDependency --parseInternal
+
+  generate:goverter:
+    desc: "Generate struct mappers with Goverter"
+    cmds:
+      - goverter gen ./internal/presentation/http/mapper ./internal/infrastructure/grpc/mapper
+
+  generate:mocks:
+    desc: "Generate layered mock interfaces with Mockery"
+    cmds:
+      - mockery
+
+  generate:wire:
+    desc: "Generate dependency injection wiring with Google Wire"
+    cmds:
+      - wire ./cmd/api
+
+  generate:
+    desc: "Run all code generators (swagger, goverter, mocks, wire)"
+    deps:
+      - task: generate:swagger
+      - task: generate:goverter
+      - task: generate:mocks
+    cmds:
+      - task: generate:wire
+
+  test:
+    desc: "Run unit tests with race detection"
+    cmds:
+      - go test -v -race ./...
+
+  build:
+    desc: "Build the HTTP API binary (without Swagger)"
+    cmds:
+      - echo "Building API binary..."
+      - go build -o {{.APP_NAME}} {{.CMD_DIR}}
+
+  build:swagger:
+    desc: "Build the HTTP API binary with Swagger UI enabled"
+    cmds:
+      - echo "Building API binary with Swagger UI (-tags swagger)..."
+      - go build -tags swagger -o {{.APP_NAME}} {{.CMD_DIR}}
+
+  run:
+    desc: "Run the HTTP API service locally"
+    cmds:
+      - go run {{.CMD_DIR}}
+
+  run:swagger:
+    desc: "Run the HTTP API service with Swagger UI enabled"
+    cmds:
+      - go run -tags swagger {{.CMD_DIR}}
+
+  clean:
+    desc: "Remove compiled binary and coverage files"
+    cmds:
+      - rm -f {{.APP_NAME}} coverage.out coverage.html
+      - echo "Cleaned."

@@ -1,0 +1,407 @@
+basePath: /
+definitions:
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.UserResponse'
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 2
+        type: string
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_dto.UserResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError:
+    properties:
+      detail:
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.ErrorDetail'
+        type: array
+      request_id:
+        type: string
+      status:
+        type: integer
+      success:
+        type: boolean
+      title:
+        type: string
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_response.ErrorDetail:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+      value: {}
+    type: object
+  backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-any:
+    properties:
+      data: {}
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+    type: object
+  ? backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-array_backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse
+  : properties:
+      data:
+        items:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.UserResponse'
+        type: array
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+    type: object
+  ? backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_AuthResponse
+  : properties:
+      data:
+        $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.AuthResponse'
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+    type: object
+  ? backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse
+  : properties:
+      data:
+        $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.UserResponse'
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: RESTful API Gateway for User Management & Authentication.
+  title: User Management API
+  version: 1.0.0
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user credentials and return a signed JWT token
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      summary: User Login
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account and obtain a JWT bearer token
+      parameters:
+      - description: User Registration Info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      summary: Register a new user
+      tags:
+      - Auth
+  /api/users:
+    get:
+      description: Retrieve a list of all existing users (Protected endpoint)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-array_backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Users
+    post:
+      consumes:
+      - application/json
+      description: Create a user record directly (Protected endpoint)
+      parameters:
+      - description: User creation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a user
+      tags:
+      - Users
+  /api/users/{id}:
+    delete:
+      description: Delete a user record permanently (Protected endpoint)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-any'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete user by ID
+      tags:
+      - Users
+    get:
+      description: Retrieve single user by their unique identifier (Protected endpoint)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: Modify name or email for a user (Protected endpoint)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update user payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_dto.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.Response-backend-challenge_apps_gateway-api_internal_presentation_http_dto_UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/backend-challenge_apps_gateway-api_internal_presentation_http_response.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update an existing user
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: Paste raw JWT token directly (no "Bearer " prefix required) or "Bearer
+      <token>"
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

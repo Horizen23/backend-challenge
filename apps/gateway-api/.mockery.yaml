@@ -1,0 +1,17 @@
+with-expecter: true
+issue-845-fix: true
+resolve-type-alias: false
+disable-version-string: true
+dir: 'tests/mocks/{{trimPrefix (trimPrefix .PackagePath "backend-challenge/apps/gateway-api/internal/") "backend-challenge/apps/common/"}}'
+mockname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+packages:
+  backend-challenge/apps/gateway-api/internal/usecase:
+    config:
+      all: true
+  backend-challenge/apps/gateway-api/internal/infrastructure/auth:
+    config:
+      all: true
+  backend-challenge/apps/common/pkg/logger:
+    config:
+      all: true
