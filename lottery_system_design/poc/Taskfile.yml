@@ -1,0 +1,27 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build local Go binary
+    cmds:
+      - go build -o lottery-poc ./main.go
+
+  run:
+    desc: Run POC locally (requires Redis running on localhost:6379)
+    cmds:
+      - go run main.go
+
+  docker:up:
+    desc: Start Redis and run Lottery POC in Docker Compose
+    cmds:
+      - docker compose up --build
+
+  docker:down:
+    desc: Stop and remove Docker Compose containers
+    cmds:
+      - docker compose down -v
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -f lottery-poc
