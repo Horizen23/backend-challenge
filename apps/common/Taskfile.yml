@@ -1,0 +1,32 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  default:
+    desc: "Show available tasks in share package"
+    cmds:
+      - task --list
+
+  proto:
+    desc: "Compile shared protobuf definitions to Go stubs"
+    cmds:
+      - mkdir -p proto/pb
+      - protoc --go_out=proto/pb --go_opt=paths=source_relative --go-grpc_out=proto/pb --go-grpc_opt=paths=source_relative -I=proto proto/user.proto
+      - echo "Protobuf generated in apps/common/proto/pb."
+
+  generate:
+    desc: "Run code generators for share package"
+    cmds:
+      - task: proto
+
+  test:
+    desc: "Run unit tests in share package"
+    cmds:
+      - go test -v -race ./...
+
+  clean:
+    desc: "Clean generated protobuf stubs in share package"
+    cmds:
+      - rm -rf proto/pb/*.pb.go
+      - echo "Cleaned share proto stubs."
